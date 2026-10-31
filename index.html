@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Interactive step-by-step sizing of small electric and fueled UAVs, following Brandt's handbook chapter.">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+<title>UAV Sizing Workbench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a Notion-style workspace. Quiet sidebar of steps, one document column, a live result rail. */
+:root {
+  --bg: #ffffff; --side: #f7f7f5; --fill: #f1f1ef; --hover: #ecebe8; --line: #e6e5e2;
+  --fg: #2f2e2b; --fg2: #6b6a65; --muted: #91908a; --accent: #2383e2; --accentbg: #e7f2fc;
+  --ok: #0b7a0b; --bad: #c62f2f; --warnbg: #fbecdd;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4;
+  --grid: #ecebe7; --axis: #cfcec8;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", math, serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #191919; --side: #202020; --fill: #2a2a29; --hover: #313130; --line: #333331;
+  --fg: #e8e7e3; --fg2: #a9a8a2; --muted: #85847e; --accent: #529cca; --accentbg: #1f3442;
+  --ok: #3cc13c; --bad: #ef6b6b; --warnbg: #3a2a1c;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181;
+  --grid: #2b2b2a; --axis: #41413e; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #191919; --side: #202020; --fill: #2a2a29; --hover: #313130; --line: #333331;
+  --fg: #e8e7e3; --fg2: #a9a8a2; --muted: #85847e; --accent: #529cca; --accentbg: #1f3442;
+  --ok: #3cc13c; --bad: #ef6b6b; --warnbg: #3a2a1c;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181;
+  --grid: #2b2b2a; --axis: #41413e; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font: 400 15px/1.6 var(--sans); }
+.app { display: grid; grid-template-columns: 232px minmax(0, 1fr) 288px; min-height: 100%; }
+aside.side { background: var(--side); border-right: 1px solid var(--line); padding-block: 16px; padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: 10px; position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.brand { font-weight: 600; font-size: 14px; padding: 2px 8px; }
+.brand small { display: block; font-weight: 400; font-size: 12px; color: var(--fg2); line-height: 1.4; }
+#modeHost { padding: 0 8px; }
+nav#nav { display: flex; flex-direction: column; gap: 1px; }
+.nav-i { display: flex; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 5px; color: var(--fg2); text-decoration: none; font-size: 14px; white-space: nowrap; }
+.nav-i .n { width: 18px; height: 18px; flex: none; display: grid; place-items: center; font: 500 11px var(--mono); border-radius: 4px; background: var(--fill); }
+.nav-i:hover { background: var(--hover); }
+.nav-i[aria-current] { background: var(--hover); color: var(--fg); font-weight: 500; }
+.nav-i[aria-current] .n { background: var(--accent); color: #fff; }
+.side-foot { margin-top: auto; padding: 0 8px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--fg2); line-height: 1.45; }
+main { min-width: 0; padding-block: 44px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+#page { max-width: 740px; margin: 0 auto; }
+.crumb { font-size: 13px; color: var(--fg2); display: flex; gap: 6px; }
+.crumb span { color: var(--muted); }
+h1 { font-size: 34px; line-height: 1.2; font-weight: 700; letter-spacing: -.012em; margin: 6px 0 8px; text-wrap: balance; }
+.lede { font-size: 16.5px; color: var(--fg2); margin: 0 0 20px; max-width: 64ch; }
+h3 { font-size: 16px; font-weight: 600; margin: 8px 0 -4px; }
+.body { display: flex; flex-direction: column; gap: 16px; }
+.body p { margin: 0; max-width: 68ch; }
+.note { font-size: 13.5px; color: var(--fg2); }
+.tag { font: 500 10.5px/1 var(--sans); padding: 3px 5px; border-radius: 3px; white-space: nowrap; }
+.tag-ch { background: var(--accentbg); color: var(--accent); }
+.tag-fig { background: var(--fill); color: var(--fg); }
+.tag-ex { background: var(--fill); color: var(--fg2); }
+.eq { background: var(--side); border-radius: 6px; padding: 14px 44px 14px 14px; position: relative; overflow-x: auto; }
+.eq math { font-family: var(--math); font-size: 17px; }
+.eqn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font: 400 12px var(--mono); color: var(--fg2); background: var(--side); padding-left: 4px; }
+.live { font: 400 13px/1.5 var(--mono); color: var(--fg); background: var(--fill); padding: 9px 12px; border-radius: 6px; overflow-wrap: anywhere; }
+.ctls { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px 28px; }
+.ctl { min-width: 0; }
+.ctl label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13.5px; font-weight: 500; }
+.ctl-row { display: flex; align-items: center; gap: 8px; }
+.ctl-row input[type=range] { flex: 1; min-width: 60px; accent-color: var(--accent); height: 22px; }
+input[type=number] { font: 400 13px var(--mono); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; width: 76px; font-variant-numeric: tabular-nums; }
+.unit { font-size: 12px; color: var(--fg2); min-width: 42px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg { display: inline-flex; gap: 2px; background: var(--fill); padding: 2px; border-radius: 6px; max-width: 100%; flex-wrap: wrap; }
+.seg button { font: 500 13px var(--sans); color: var(--fg2); background: none; border: 0; padding: 4px 10px; border-radius: 4px; cursor: pointer; }
+.seg button[aria-checked="true"] { background: var(--bg); color: var(--fg); box-shadow: 0 0 0 1px var(--line); }
+.side .seg { display: flex; } .side .seg button { flex: 1; }
+.btn { font: 500 13px var(--sans); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; cursor: pointer; }
+.btn:hover { background: var(--hover); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; cursor: pointer; }
+.check input { accent-color: var(--accent); width: 15px; height: 15px; }
+.callout { background: var(--side); border-radius: 6px; padding: 12px 14px; font-size: 14px; }
+.callout.muted { color: var(--fg2); }
+.callout.warn { background: var(--warnbg); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.card { text-align: left; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+.card:hover { background: var(--side); }
+.card[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.card svg { color: var(--fg2); }
+.card span { font-size: 13px; color: var(--fg2); line-height: 1.4; }
+.figure { background: var(--side); border-radius: 8px; display: flex; justify-content: center; min-height: 330px; overflow: hidden; }
+.sk-w { fill: var(--s1); fill-opacity: .22; stroke: var(--s1); stroke-width: 1.5; }
+.sk-t { fill: var(--s1); fill-opacity: .22; stroke: var(--s1); stroke-width: 1.5; }
+.sk-f { fill: var(--bg); stroke: var(--fg2); stroke-width: 1.5; }
+.sk-p { stroke: var(--fg); stroke-width: 3; stroke-linecap: round; }
+.sk-l { fill: none; stroke: var(--muted); stroke-width: 1; }
+.sk-d { fill: var(--fg2); }
+.sk-tx { fill: var(--fg2); font: 400 12px var(--sans); }
+.ghost { opacity: .4; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 14px; }
+.stat { min-width: 0; }
+.stat span { display: block; font-size: 12.5px; color: var(--fg2); }
+.stat b { font-size: 21px; font-weight: 600; }
+.stat em { font-style: normal; font-size: 12px; color: var(--fg2); margin-left: 4px; }
+.pill-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+.pill { display: inline-flex; gap: 6px; align-items: baseline; font-size: 13.5px; font-weight: 500; }
+.pill.ok b, .ok { color: var(--ok); } .pill.bad b, .bad { color: var(--bad); }
+.pill.ok, .pill.bad { color: var(--fg); }
+.dim { color: var(--muted); }
+.plot { min-width: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--fg2); margin-bottom: 6px; }
+.leg { display: inline-flex; align-items: center; gap: 6px; }
+.stage { position: relative; touch-action: pan-y; }
+.stage svg { display: block; width: 100%; }
+.stage svg.over { position: absolute; inset: 0; pointer-events: none; }
+.grid { stroke: var(--grid); stroke-width: 1; }
+.axis { stroke: var(--axis); stroke-width: 1; }
+.tick { fill: var(--muted); font: 400 11px var(--mono); }
+.axl { fill: var(--fg2); font: 400 12px var(--sans); }
+.mk { fill: var(--fg); font: 500 12px var(--sans); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }
+.region { fill: var(--accent); fill-opacity: .09; }
+.tip { position: absolute; pointer-events: none; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; font-size: 12px; min-width: 150px; box-shadow: 0 3px 10px rgba(0, 0, 0, .1); z-index: 3; }
+.th { font-weight: 600; margin-bottom: 3px; }
+.tr { display: flex; align-items: center; gap: 6px; color: var(--fg2); line-height: 1.55; }
+.tr i { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.tr b { margin-left: auto; color: var(--fg); font: 500 12px var(--mono); padding-left: 10px; }
+.tr-sum { border-top: 1px solid var(--line); margin-top: 3px; padding-top: 3px; }
+.scroll { overflow-x: auto; }
+.tbl { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.tbl th { text-align: left; font-weight: 500; color: var(--fg2); font-size: 12.5px; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tbl td { padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tbl tfoot td { font-weight: 600; border-bottom: 0; }
+.tbl input[type=number] { width: 62px; border-color: transparent; background: var(--fill); }
+.tbl .ck { width: 24px; padding-right: 0; }
+.tbl .ck input { accent-color: var(--accent); }
+.num { font: 400 13px var(--mono); font-variant-numeric: tabular-nums; }
+.sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 7px; }
+.barc { min-width: 110px; }
+.bar { display: block; height: 8px; background: var(--s1); border-radius: 0 4px 4px 0; }
+.stack { display: flex; gap: 2px; height: 28px; margin-bottom: 8px; }
+.stack div { min-width: 2px; }
+.stack div:first-child { border-radius: 4px 0 0 4px; } .stack div:last-child { border-radius: 0 4px 4px 0; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.two > div { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+details { border-top: 1px solid var(--line); padding-top: 8px; font-size: 14px; }
+summary { cursor: pointer; font-weight: 500; }
+details > div { padding-top: 6px; color: var(--fg2); display: flex; flex-direction: column; gap: 8px; }
+.pager { display: flex; justify-content: space-between; margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--line); gap: 12px; }
+.pager a { color: var(--fg); text-decoration: none; font-weight: 500; font-size: 14px; padding: 4px 8px; border-radius: 5px; }
+.pager a:hover { background: var(--hover); }
+aside.rail { border-left: 1px solid var(--line); padding: 20px 16px; position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.rail-h { font-size: 12.5px; font-weight: 500; color: var(--fg2); }
+#railSketch { background: var(--side); border-radius: 8px; min-height: 210px; overflow: hidden; }
+#railStats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+#railStats div { min-width: 0; }
+#railStats span { display: block; font-size: 12px; color: var(--fg2); }
+#railStats b { font-size: 19px; font-weight: 600; }
+#railStats em { font-style: normal; font-size: 11.5px; color: var(--fg2); margin-left: 3px; }
+#railPill { display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 1160px) {
+  .app { grid-template-columns: 216px minmax(0, 1fr); }
+  aside.rail { grid-column: 2; grid-row: 1; position: sticky; top: env(safe-area-inset-top, 0px); height: auto; z-index: 5; background: var(--bg); border-left: 0; border-bottom: 1px solid var(--line); padding: 10px 16px; gap: 6px; }
+  .rail-h, #railSketch { display: none; }
+  #railStats { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+  #railStats b { font-size: 15px; } #railStats span { font-size: 11px; }
+  main { grid-column: 2; grid-row: 2; padding-top: 24px; }
+  aside.side { grid-row: 1 / span 2; }
+}
+@media (max-width: 760px) {
+  .app { display: flex; flex-direction: column; }
+  aside.side { order: 0; } aside.rail { order: 1; } main { order: 2; }
+  aside.side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 12px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); gap: 8px; }
+  nav#nav { flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+  .side-foot { display: none; }
+  .brand, #modeHost { padding: 0; }
+  aside.rail { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  #railStats div:nth-child(n+4) { display: none; }
+  h1 { font-size: 28px; }
+  .eq { padding-right: 14px; } .eqn { position: static; transform: none; display: block; text-align: right; padding: 4px 0 0; }
+  .eq math { font-size: 15px; }
+}
+@media (prefers-reduced-motion: no-preference) { .nav-i, .card, .btn { transition: background .12s; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">UAV Sizing Workbench<small>After Brandt, Handbook of UAVs, ch. 10</small></div>
+    <div id="modeHost"></div>
+    <nav id="nav" aria-label="Sizing steps"></nav>
+    <div class="side-foot">
+      <div>Each input is tagged Chapter, Read from figure, or Example.</div>
+      <button type="button" class="btn" id="reset">Reset this aircraft</button>
+    </div>
+  </aside>
+  <main><div id="page"></div></main>
+  <aside class="rail" aria-label="Live result">
+    <div class="rail-h">Live result, plan view to scale</div>
+    <div id="railSketch"></div>
+    <div id="railStats"></div>
+    <div id="railPill"></div>
+  </aside>
+</div>
+<script>
+/* Sizing model: Brandt, Small UAV Design Development and Sizing. Units: lb, ft, s. */
+const G = 32.174, WH_TO_FTLB = 2655.22, LB_PER_G = 1 / 453.592;
+const FIG_10_5 = [[17,.125],[25,.175],[31,.225],[36,.25],[41,.28],[50,.42],[55,.43],[57,.49],[60.5,.53],[63,.57],[65.5,.61],[68,.665]];
+
+const dynQ = (rho, V) => 0.5 * rho * V * V;
+const polarCD = (p, CL) => p.CDo + p.k1 * CL * CL + p.k2 * CL;
+
+/* Eq. 10.3 */
+function masterTW(p, wl, c, rho) {
+  const q = dynQ(rho, c.V), nb = c.n * c.beta;
+  const drag = (q / c.alpha) * (p.CDo / wl + p.k1 * (nb / q) ** 2 * wl + p.k2 * (nb / q));
+  const excess = (c.beta / c.alpha) * (c.roc / c.V + c.acc / G);
+  return drag + excess;
+}
+/* CL = nW/qS at n = 1, CLmax reached at the launch or landing speed */
+const wingLoadingLimit = (lim, rho, beta = 1) => dynQ(rho, lim.V) * lim.CLmax / beta;
+
+function requiredTW(p, wl, cons, rho) {
+  let tw = -Infinity, id = null;
+  for (const c of cons) { if (c.on === false) continue; const v = masterTW(p, wl, c, rho); if (v > tw) { tw = v; id = c.id; } }
+  return { tw, id };
+}
+function idealPoint(p, cons, lim, rho, wlMaxAxis) {
+  const top = lim.on === false ? wlMaxAxis : Math.min(wlMaxAxis, wingLoadingLimit(lim, rho));
+  let best = { wl: top, tw: Infinity };
+  for (let i = 1; i <= 400; i++) {
+    const wl = top * i / 400, r = requiredTW(p, wl, cons, rho).tw;
+    if (r < best.tw) best = { wl, tw: r };
+  }
+  return best;
+}
+const interp = (pts, x) => {
+  if (x <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) if (x <= pts[i][0]) {
+    const [a, b] = pts[i - 1], [c, d] = pts[i];
+    return b + (d - b) * (x - a) / (c - a);
+  }
+  return pts[pts.length - 1][1];
+};
+const etaOf = (m, V) => m.etaSource === 'fig' ? interp(FIG_10_5, V) : m.etaMotor * m.etaProp;
+
+/* Eqs. 10.7-10.10. Weight fraction of the battery. */
+function batteryFraction(p, m, wl, rho, V = m.Vc) {
+  const q = dynQ(rho, V), CL = wl / q, CD = polarCD(p, CL), LD = CL / CD;
+  const eFt = m.e * WH_TO_FTLB, eta = etaOf(m, V), t = m.tHr * 3600;
+  const cruise = (V * t / LD) / (eFt * eta);
+  const climb = m.dh / (eFt * eta);
+  return { frac: m.approx ? cruise : cruise + climb, cruise, climb, LD, CL, CD, eta };
+}
+/* Eq. 10.4 applied to one short leg */
+function legFuel(p, leg, beta, wl, cPerS, rho) {
+  const q = dynQ(rho, leg.V), nb = leg.n * beta;
+  const steady = cPerS * q * (p.CDo / wl + p.k1 * (nb / q) ** 2 * wl + p.k2 * (nb / q)) * leg.dt;
+  const energy = cPerS * beta * (leg.dh / leg.V + leg.dV / G);
+  return steady + energy;
+}
+/* Leg-by-leg beta bookkeeping; long legs split per Sec. 10.4 */
+function missionFuel(p, legs, wl, cPerHr, rho) {
+  const cPerS = cPerHr / 3600;
+  let beta = 1; const rows = [];
+  for (const leg of legs) {
+    const b0 = beta, N = leg.split ? 40 : 1;
+    let f = 0;
+    for (let i = 0; i < N; i++) {
+      const df = legFuel(p, { ...leg, dt: leg.dt / N, dh: leg.dh / N, dV: leg.dV / N }, beta, wl, cPerS, rho);
+      f += df; beta -= df;
+    }
+    rows.push({ id: leg.id, name: leg.name, beta: b0, fuel: f, dt: leg.dt });
+  }
+  return { rows, total: 1 - beta, betaEnd: beta };
+}
+/* Eq. 10.1 / 10.6 */
+function sizeAircraft(wlTotal, parts, Wp) {
+  const left = wlTotal - parts.airframe - parts.energy - parts.power;
+  const S = left > 0 ? Wp / left : Infinity;
+  return { left, S, W: S * wlTotal, feasible: left > 0 };
+}
+function electricParts(p, m, wl, tw, rho, airframe) {
+  const b = batteryFraction(p, m, wl, rho);
+  return { parts: { airframe, energy: b.frac * wl, power: tw * wl / m.twEngine }, b };
+}
+/* Sec. 10.5, 10.6.5: fuselage held, wing resized. One pass at wing area S. */
+function polarAt(p, it, S) {
+  return { ...p, CDo: p.CDo * ((1 - it.dragShare) + it.dragShare * it.Sref / S) };
+}
+const airframeAt = (a, it, S) => a * ((1 - it.weightShare) + it.weightShare * it.Sref / S);
+
+function iterateSizing(pass, it) {
+  const hist = []; let S = it.Sref;
+  for (let i = 0; i < it.maxIter; i++) {
+    const r = pass(S);
+    if (!r.feasible) { hist.push({ i, S, Snew: Infinity, CDo: r.CDo, tw: r.tw }); return { hist, status: 'nosolution' }; }
+    const change = Math.abs(r.S - S) / S;
+    hist.push({ i, S, Snew: r.S, CDo: r.CDo, tw: r.tw, change });
+    if (change < it.tol) return { hist, status: 'converged', S: r.S };
+    S = it.damp ? 0.5 * (S + r.S) : r.S;
+  }
+  return { hist, status: 'notconverged' };
+}
+
+/* ---------- presets ---------- */
+const presets = () => ({
+  electric: {
+    polar: { CDo: 0.0113, k1: 0.1, k2: 0 }, AR: 4, rho: 0.002377, Wp: 0.22, wl: 1.1, tw: 0.21,
+    cons: [
+      { id: 'c1', name: 'Cruise 50 ft/s', V: 50, n: 1, roc: 0, acc: 0, alpha: 1, beta: 1, on: true },
+      { id: 'c2', name: 'Cruise 30 ft/s', V: 30, n: 1, roc: 0, acc: 0, alpha: 1, beta: 1, on: true },
+      { id: 'c3', name: '2g turn', V: 50, n: 2, roc: 0, acc: 0, alpha: 1, beta: 1, on: true },
+      { id: 'c4', name: '4 ft/s climb', V: 40, n: 1, roc: 4, acc: 0, alpha: 1, beta: 1, on: true },
+    ],
+    lim: { on: true, name: 'Hand launch', V: 31.3, CLmax: 1.2 },
+    comps: [{ name: 'Wing', w: 0.13, r: 1 }, { name: 'Tail', w: 0.1, r: 0.25 }, { name: 'Fuselage', w: 0.09, r: 0.5 }],
+    e: 68, Vc: 50, tHr: 3.25, dh: 500, approx: true, etaSource: 'fig', etaMotor: 0.7, etaProp: 0.6, twEngine: 2,
+    it: { dragShare: 0.4, weightShare: 0.4, Sref: 1.6, tol: 0.005, maxIter: 14, damp: true },
+    axes: { wl: 3, tw: 0.6 }, spanRef: 2,
+  },
+  fueled: {
+    polar: { CDo: 0.03, k1: 0.06, k2: -0.005 }, AR: 6, rho: 0.002377, Wp: 5, wl: 2.8, tw: 0.42,
+    cons: [
+      { id: 'c1', name: 'Cruise 65 ft/s', V: 65, n: 1, roc: 0, acc: 0, alpha: 0.8, kind: 'mission', on: true },
+      { id: 'c2', name: 'Dash 90 ft/s', V: 90, n: 1, roc: 0, acc: 0, alpha: 0.7, kind: 'mission', on: true },
+      { id: 'c3', name: '2g turn', V: 60, n: 2, roc: 0, acc: 0, alpha: 0.8, kind: 'mission', on: true },
+      { id: 'c4', name: '6 ft/s climb', V: 55, n: 1, roc: 6, acc: 0, alpha: 0.85, kind: 'mission', on: true },
+      { id: 'c5', name: 'Takeoff roll', V: 35, n: 0, roc: 0, acc: 8, alpha: 1, kind: 'takeoff', on: true },
+    ],
+    lim: { on: true, name: 'Landing', V: 42, CLmax: 1.4 },
+    comps: [{ name: 'Wing', w: 0.35, r: 1 }, { name: 'Tail', w: 0.25, r: 0.25 }, { name: 'Fuselage', w: 0.25, r: 0.8 }],
+    cHr: 1.2, split: true, twEngine: 3,
+    legs: [
+      { id: 'to', name: 'Takeoff', V: 35, n: 1, dtMin: 0.2, dh: 0, dV: 35 },
+      { id: 'acc', name: 'Accelerate', V: 50, n: 1, dtMin: 0.15, dh: 0, dV: 30 },
+      { id: 'clb', name: 'Climb', V: 65, n: 1, dtMin: 2, dh: 600, dV: 0 },
+      { id: 'cr', name: 'Cruise', V: 65, n: 1, dtMin: 40, dh: 0, dV: 0, long: true },
+      { id: 'lo', name: 'Loiter', V: 50, n: 1, dtMin: 180, dh: 0, dV: 0, long: true },
+    ],
+    it: { dragShare: 0.4, weightShare: 0.4, Sref: 7, tol: 0.005, maxIter: 14, damp: true },
+    axes: { wl: 6, tw: 1.2 }, spanRef: 6,
+  },
+});
+const state = { mode: 'electric', tail: 'it', noseClear: false, ...presets() };
+const cur = () => state[state.mode];
+const isE = () => state.mode === 'electric';
+const COLORS = ['--s1', '--s2', '--s3', '--s4', '--s5'];
+const DASHES = ['', '7 3', '2 3', '10 3 2 3', '4 4'];
+
+/* ---------- shared calculations ---------- */
+const airframeOf = s => s.comps.reduce((a, c) => a + c.w * c.r, 0);
+const legsOf = s => s.legs.map(l => ({ ...l, dt: l.dtMin * 60, split: s.split && l.long }));
+const fuelOf = (s, polar, wl) => missionFuel(polar, legsOf(s), wl, s.cHr, s.rho);
+function consOf(s, polar, wl) {
+  if (isModeE(s)) return s.cons.map(c => ({ ...c, beta: 1 }));
+  const ff = fuelOf(s, polar, wl).total;
+  return s.cons.map(c => ({ ...c, beta: c.kind === 'takeoff' ? 1 : 1 - 0.5 * ff }));
+}
+const isModeE = s => 'Vc' in s;
+function partsOf(s, polar, wl, tw, airframe) {
+  if (isModeE(s)) { const r = electricParts(polar, s, wl, tw, s.rho, airframe); return { parts: r.parts, detail: r.b }; }
+  const mf = fuelOf(s, polar, wl);
+  return { parts: { airframe, energy: mf.total * wl, power: tw * wl / s.twEngine }, detail: mf };
+}
+function solve(s, polar = s.polar, wl = s.wl, tw = s.tw) {
+  const { parts, detail } = partsOf(s, polar, wl, tw, airframeOf(s));
+  return { parts, detail, ...sizeAircraft(wl, parts, s.Wp) };
+}
+function checkDesign(s) {
+  const cons = consOf(s, s.polar, s.wl), rows = cons.map(c => ({ c, req: masterTW(s.polar, s.wl, c, s.rho) }));
+  const missed = rows.filter(r => r.c.on && r.req > s.tw + 1e-9).map(r => r.c.name);
+  const limit = wingLoadingLimit(s.lim, s.rho);
+  if (s.lim.on && s.wl > limit + 1e-9) missed.push(s.lim.name);
+  return { rows, missed, limit };
+}
+const f = (x, d = 2) => Number.isFinite(x) ? x.toFixed(d) : '–';
+
+/* ---------- small DOM helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+function h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
+const SRC = { ch: ['Chapter', 'Value stated in the chapter'], fig: ['Read from figure', 'Read or fitted from a figure in the chapter'], ex: ['Example', 'Example value. The chapter does not give one, so change it freely'] };
+const tag = k => k ? `<span class="tag tag-${k}" title="${SRC[k][1]}">${SRC[k][0]}</span>` : '';
+let uid = 0;
+function ctl(obj, key, o) {
+  const id = 'c' + (++uid), d = o.d ?? 2;
+  const el = h(`<div class="ctl">
+    <label for="${id}"><span>${o.label}</span>${tag(o.src)}</label>
+    <div class="ctl-row">
+      <input type="range" id="${id}" min="${o.min}" max="${o.max}" step="${o.step}" value="${obj[key]}">
+      <input type="number" id="${id}n" aria-label="${o.label.replace(/<[^>]+>/g, '')}" min="${o.min}" max="${o.max}" step="${o.step}" value="${(+obj[key]).toFixed(d)}">
+      <span class="unit">${o.unit || ''}</span>
+    </div></div>`);
+  const [r, n] = el.querySelectorAll('input');
+  r.addEventListener('input', () => { obj[key] = +r.value; n.value = (+r.value).toFixed(d); update(); });
+  n.addEventListener('input', () => { if (n.value === '' || !Number.isFinite(+n.value)) return; obj[key] = +n.value; r.value = n.value; update(); });
+  el._sync = () => { r.value = obj[key]; if (document.activeElement !== n) n.value = (+obj[key]).toFixed(d); };
+  sync.push(el._sync);
+  return el;
+}
+let sync = [];
+const callout = (t, kind = '') => `<div class="callout ${kind}"><div>${t}</div></div>`;
+const ref = t => `<span class="ref">${t}</span>`;
+function seg(obj, key, opts, after) {
+  const el = h(`<div class="seg" role="radiogroup">${opts.map(([v, l]) => `<button type="button" role="radio" aria-checked="${obj[key] === v}" data-v="${v}">${l}</button>`).join('')}</div>`);
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const raw = b.dataset.v; obj[key] = typeof obj[key] === 'boolean' ? raw === 'true' : raw;
+    el.querySelectorAll('button').forEach(x => x.setAttribute('aria-checked', x === b));
+    after ? after() : update();
+  });
+  return el;
+}
+
+/* ---------- MathML ---------- */
+const mi = t => `<mi>${t}</mi>`;
+const mo = t => `<mo>${t}</mo>`;
+const sub = (a, b) => `<msub><mi>${a}</mi><mtext>${b}</mtext></msub>`;
+const fr = (a, b) => `<mfrac><mrow>${a}</mrow><mrow>${b}</mrow></mfrac>`;
+const eq = (body, n) => `<div class="eq"><math display="block"><mrow>${body}</mrow></math>${n ? `<span class="eqn">(${n})</span>` : ''}</div>`;
+const paren = t => `<mrow><mo>(</mo>${t}<mo>)</mo></mrow>`;
+
+/* ---------- charts ---------- */
+function ticks(max, min = 0, count = 5) {
+  const span = max - min, raw = span / count, mag = 10 ** Math.floor(Math.log10(raw)), r = raw / mag;
+  const step = (r >= 5 ? 10 : r >= 2 ? 5 : r >= 1.5 ? 2 : 1) * mag, out = [];
+  for (let t = Math.ceil(min / step - 1e-9) * step; t <= max + 1e-9; t += step) out.push(+t.toFixed(6));
+  return out;
+}
+function legendHtml(series) {
+  if (series.length < 2) return '';
+  return `<div class="legend">${series.map(s => `<span class="leg"><svg width="26" height="10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="var(${s.color})" stroke-width="2" stroke-linecap="round" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''}/></svg>${s.name}</span>`).join('')}</div>`;
+}
+function plot(host, o) {
+  if (!host._init) {
+    host._init = true;
+    host.classList.add('plot');
+    host.innerHTML = '<div class="leg-wrap"></div><div class="stage"><svg class="base" role="img"></svg><svg class="over" aria-hidden="true"></svg><div class="tip" hidden></div></div>';
+    const stage = $('.stage', host);
+    const at = e => { const r = stage.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    stage.addEventListener('pointermove', e => { host._hover = at(e); if (host._down && host._o.onPick) pick(host, ...host._hover); drawHover(host); });
+    stage.addEventListener('pointerleave', () => { host._hover = null; host._down = false; drawHover(host); });
+    stage.addEventListener('pointerdown', e => { if (!host._o.onPick) return; host._down = true; pick(host, ...at(e)); });
+    window.addEventListener('pointerup', () => { host._down = false; });
+  }
+  host._o = o;
+  const leg = $('.leg-wrap', host), lh = legendHtml(o.series);
+  if (leg._h !== lh) { leg.innerHTML = lh; leg._h = lh; }
+  const stage = $('.stage', host), W = Math.max(280, stage.clientWidth || 640), H = o.h || 320;
+  const m = { l: 50, r: 16, t: 12, b: 44 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const x0 = o.x.min ?? 0, y0 = o.y.min ?? 0;
+  const sx = v => m.l + (v - x0) / (o.x.max - x0) * pw, sy = v => m.t + ph - (v - y0) / (o.y.max - y0) * ph;
+  host._s = { sx, sy, ix: px => x0 + (px - m.l) / pw * (o.x.max - x0), iy: py => y0 + (m.t + ph - py) / ph * (o.y.max - y0), m, pw, ph, W, H };
+  const clip = 'clip' + (host._cid ||= ++uid);
+  let g = `<defs><clipPath id="${clip}"><rect x="${m.l}" y="${m.t}" width="${pw}" height="${ph}"/></clipPath></defs>`;
+  for (const t of ticks(o.y.max, y0)) g += `<line class="grid" x1="${m.l}" x2="${m.l + pw}" y1="${sy(t)}" y2="${sy(t)}"/><text class="tick" x="${m.l - 8}" y="${sy(t) + 4}" text-anchor="end">${t}</text>`;
+  for (const t of ticks(o.x.max, x0, W < 420 ? 4 : 6)) g += `<text class="tick" x="${sx(t)}" y="${m.t + ph + 18}" text-anchor="middle">${t}</text>`;
+  g += `<line class="axis" x1="${m.l}" x2="${m.l + pw}" y1="${m.t + ph}" y2="${m.t + ph}"/>`;
+  g += `<text class="axl" x="${m.l + pw / 2}" y="${H - 6}" text-anchor="middle">${o.x.label}</text>`;
+  g += `<text class="axl" transform="translate(13 ${m.t + ph / 2}) rotate(-90)" text-anchor="middle">${o.y.label}</text>`;
+  g += `<g clip-path="url(#${clip})">`;
+  if (o.region) g += `<path class="region" d="M${o.region.map(p => `${sx(p[0]).toFixed(1)} ${sy(p[1]).toFixed(1)}`).join('L')}Z"/>`;
+  for (const v of o.vlines || []) g += `<line x1="${sx(v.x)}" x2="${sx(v.x)}" y1="${m.t}" y2="${m.t + ph}" stroke="var(${v.color || '--muted'})" stroke-width="2" ${v.dash ? `stroke-dasharray="${v.dash}"` : ''}/>`;
+  for (const s of o.series) {
+    const d = s.pts.filter(p => Number.isFinite(p[1])).map((p, i) => `${i ? 'L' : 'M'}${sx(p[0]).toFixed(1)} ${sy(Math.min(p[1], o.y.max * 3)).toFixed(1)}`).join('');
+    g += `<path d="${d}" fill="none" stroke="var(${s.color})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''}/>`;
+    if (s.dots) for (const p of s.pts) if (Number.isFinite(p[1])) g += `<circle cx="${sx(p[0])}" cy="${sy(p[1])}" r="${s.dots}" fill="var(${s.color})" stroke="var(--bg)" stroke-width="2"/>`;
+  }
+  g += '</g>';
+  for (const k of o.marks || []) {
+    const X = sx(k.x), Y = sy(k.y);
+    if (k.type === 'ring') g += `<circle cx="${X}" cy="${Y}" r="7" fill="var(--bg)" fill-opacity=".6" stroke="var(--fg)" stroke-width="2"/>`;
+    else if (k.type === 'plus') g += `<circle cx="${X}" cy="${Y}" r="11" fill="var(--bg)"/><path d="M${X - 9} ${Y}H${X + 9}M${X} ${Y - 9}V${Y + 9}" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>`;
+    else g += `<circle cx="${X}" cy="${Y}" r="5" fill="var(--accent)" stroke="var(--bg)" stroke-width="2"/>`;
+    if (k.label) { const right = X < m.l + pw - 130; g += `<text class="mk" x="${X + (right ? 13 : -13)}" y="${Y - 10}" text-anchor="${right ? 'start' : 'end'}">${k.label}</text>`; }
+  }
+  const svg = $('.base', host), over = $('.over', host);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('height', H); svg.setAttribute('aria-label', o.aria || '');
+  over.setAttribute('viewBox', `0 0 ${W} ${H}`); over.setAttribute('height', H);
+  svg.innerHTML = g;
+  drawHover(host);
+}
+function pick(host, px, py) {
+  const { ix, iy } = host._s, o = host._o;
+  o.onPick(Math.max(o.x.min ?? 0, Math.min(o.x.max, ix(px))), Math.max(0, Math.min(o.y.max, iy(py))));
+}
+function drawHover(host) {
+  const over = $('.over', host), tip = $('.tip', host), o = host._o, s = host._s;
+  if (!host._hover || !s) { over.innerHTML = ''; tip.hidden = true; return; }
+  const [px, py] = host._hover, { m, ph, pw } = s;
+  if (px < m.l || px > m.l + pw) { over.innerHTML = ''; tip.hidden = true; return; }
+  let g = '', rows = '', head = '', anchorX = px;
+  if (o.nearest) {
+    let best = null;
+    for (const se of o.series) for (const p of se.pts) {
+      if (!Number.isFinite(p[1])) continue;
+      const d = (s.sx(p[0]) - px) ** 2 + (s.sy(p[1]) - py) ** 2;
+      if (!best || d < best.d) best = { d, p, se };
+    }
+    if (!best) return;
+    anchorX = s.sx(best.p[0]);
+    g = `<circle cx="${anchorX}" cy="${s.sy(best.p[1])}" r="6" fill="var(${best.se.color})" stroke="var(--bg)" stroke-width="2"/>`;
+    head = best.se.name; rows = o.nearest(best.p);
+  } else {
+    const x = s.ix(px);
+    g = `<line x1="${px}" x2="${px}" y1="${m.t}" y2="${m.t + ph}" stroke="var(--muted)" stroke-width="1"/>`;
+    head = o.tipHead ? o.tipHead(x) : f(x);
+    for (const se of o.series) {
+      const y = interp(se.pts, x); if (!Number.isFinite(y)) continue;
+      if (y <= o.y.max && y >= (o.y.min ?? 0)) g += `<circle cx="${px}" cy="${s.sy(y)}" r="4" fill="var(${se.color})" stroke="var(--bg)" stroke-width="2"/>`;
+      rows += `<div class="tr"><i style="background:var(${se.color})"></i><span>${se.name}</span><b>${f(y, o.tipD ?? 3)}</b></div>`;
+    }
+    if (o.tipExtra) rows += o.tipExtra(x);
+  }
+  over.innerHTML = g;
+  tip.innerHTML = `<div class="th">${head}</div>${rows}`; tip.hidden = false;
+  const tw = tip.offsetWidth; tip.style.left = (anchorX + 14 + tw > s.W ? Math.max(0, anchorX - tw - 14) : anchorX + 14) + 'px';
+  tip.style.top = Math.max(0, Math.min(py - 20, s.H - tip.offsetHeight)) + 'px';
+}
+
+/* ---------- aircraft sketch: plan view, nose up ---------- */
+function sketch({ S, AR, tail, aft, W, H, ppf, labels, showBar }) {
+  const b = Math.sqrt(AR * S), c = S / b, L = 0.8 * b, fw = Math.max(0.085 * L, 0.05 * b);
+  const cx = W / 2, top = (H - L * ppf) / 2 - (labels ? 0 : 6), wy = top + 0.26 * L * ppf;
+  const px = v => v * ppf, tailY = top + L * ppf - px(c) * 0.85, ts = 0.36 * b, tc = 0.72 * c;
+  let g = `<rect class="sk-w" x="${cx - px(b) / 2}" y="${wy}" width="${px(b)}" height="${px(c)}" rx="${Math.min(4, px(c) / 5)}"/>`;
+  if (tail === 'it') g += `<rect class="sk-t" x="${cx - px(ts) / 2}" y="${tailY}" width="${px(ts)}" height="${px(tc)}" rx="2"/>`;
+  else {
+    const dx = px(ts) / 2, sw = px(tc) * 0.75;
+    for (const sg of [-1, 1]) g += `<path class="sk-t" d="M${cx} ${tailY + px(tc) * .1}L${cx + sg * dx} ${tailY + px(tc) * .55}L${cx + sg * dx} ${tailY + px(tc) * .55 + sw * .8}L${cx} ${tailY + px(tc) * .1 + sw * 1.2}Z"/>`;
+  }
+  g += `<rect class="sk-f" x="${cx - px(fw) / 2}" y="${top}" width="${px(fw)}" height="${px(L)}" rx="${px(fw) / 2.4}"/>`;
+  const propY = aft ? top + px(L) + 5 : top - 5, pl = px(0.24 * b);
+  g += `<line class="sk-p" x1="${cx - pl / 2}" x2="${cx + pl / 2}" y1="${propY}" y2="${propY}"/>`;
+  if (labels) {
+    const lab = (x1, y1, x2, y2, t, a) => `<path class="sk-l" d="M${x1} ${y1}L${x2} ${y2}"/><circle class="sk-d" cx="${x1}" cy="${y1}" r="2.5"/><text class="sk-tx" x="${x2 + (a === 'end' ? -6 : 6)}" y="${y2 + 4}" text-anchor="${a || 'start'}">${t}</text>`;
+    g += lab(cx + px(b) * .3, wy + px(c) / 2, cx + px(b) * .3, wy - 26, 'Main wing, high on the fuselage');
+    g += lab(cx + px(fw) * .3, top + px(L) * .62, cx + 58, top + px(L) * .62, 'Fuselage, often sized by payload');
+    g += lab(cx - px(ts) * .3, tailY + px(tc) * .5, cx - px(ts) * .3 - 40, tailY + px(tc) * .5 + 24, tail === 'it' ? 'Inverted T-tail' : tail === 'v' ? 'V-tail, ruddervators' : 'V-tail plus lower fin', 'end');
+    g += lab(cx - pl / 2, propY, cx - pl / 2 - 36, propY + (aft ? 14 : -4), aft ? 'Pusher propeller' : 'Tractor propeller', 'end');
+  }
+  if (showBar) {
+    const unit = ppf > 40 ? 1 : ppf > 10 ? 2 : 5, x = 10, y = H - 12;
+    g += `<path class="sk-l" d="M${x} ${y - 4}V${y}H${x + unit * ppf}V${y - 4}"/><text class="sk-tx" x="${x + unit * ppf + 6}" y="${y + 3}">${unit} ft</text>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Plan view of the aircraft, ${f(b, 1)} ft span">${g}</svg>`;
+}
+
+/* ---------- pages ---------- */
+const P = {};
+const nextOf = id => { const i = order.indexOf(id); return [order[i - 1], order[i + 1]]; };
+const order = ['config', 'polar', 'constraints', 'energy', 'weights', 'size', 'iterate', 'optimize'];
+const titles = () => ({ config: 'Configuration', polar: 'Drag polar', constraints: 'Constraint analysis', energy: isE() ? 'Battery energy' : 'Mission fuel', weights: 'Weights', size: 'Size the aircraft', iterate: 'Iterate', optimize: 'Optimize' });
+const secs = () => ({ config: '§10.2', polar: '§10.3.2', constraints: '§10.3.3', energy: isE() ? '§10.6.3' : '§10.4', weights: isE() ? '§10.6.2, §10.6.4' : '§10.5', size: isE() ? '§10.6.5' : '§10.3.1', iterate: isE() ? '§10.6.5' : '§10.5', optimize: '§10.6.6' });
+
+P.config = {
+  lede: 'The chapter asks two questions: what will it look like, and how big will it be? This step answers the first.',
+  build(el) {
+    el.append(h(`<p>All three layouts in Fig. 10.1 use one high wing and a stabilizing tail aft. Since the Wright brothers, that arrangement has proven more successful than canards or tailless flying wings. They differ in two details: the tail and the propeller position.</p>`));
+    const cards = h(`<div class="cards"></div>`);
+    const opts = [['it', 'Inverted T', 'Fin and rudder on top of the stabilizer and elevator', '<path d="M6 34H54M30 34V8"/>'],
+      ['v', 'V-tail', 'Combines rudder and elevator into ruddervators', '<path d="M30 34L8 14M30 34L52 14"/>'],
+      ['vf', 'V plus lower fin', 'The fin below the V keeps an aft propeller off the ground', '<path d="M30 28L8 10M30 28L52 10M30 28V46"/>']];
+    for (const [v, t, d, svg] of opts) {
+      const b = h(`<button type="button" class="card" data-v="${v}"><svg viewBox="0 0 60 50" width="60" height="50" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">${svg}</g></svg><strong>${t}</strong><span>${d}</span></button>`);
+      b.addEventListener('click', () => { state.tail = v; if (v === 'vf') state.noseClear = true; else state.noseClear = false; update(); syncConfig(); });
+      cards.append(b);
+    }
+    el.append(cards);
+    const syncConfig = () => { cards.querySelectorAll('.card').forEach(c => c.setAttribute('aria-pressed', c.dataset.v === state.tail)); };
+    syncConfig();
+    el.append(h(`<p class="note">Rear view of each tail. None has proven clearly better, so the chapter leaves the choice to the designer.</p>`));
+    const row = h(`<label class="check"><input type="checkbox" id="nose"><span>The nose must stay clear for sensors or payload</span></label>`);
+    const cb = $('input', row); cb.checked = state.noseClear;
+    cb.addEventListener('change', () => { state.noseClear = cb.checked; if (cb.checked) state.tail = 'vf'; else if (state.tail === 'vf') state.tail = 'it'; syncConfig(); update(); });
+    this.cb = cb;
+    el.append(row);
+    el.append(h(`<div class="figure" id="anat"></div>`));
+    el.append(h(callout(`<strong>Effect on size: almost none.</strong> An aft motor is harder to cool and makes a slightly heavier structure, but the chapter ignores that for initial sizing. These choices redraw the aircraft and leave every sizing number unchanged. Keep the motor forward unless a requirement says otherwise.`)));
+  },
+  update() {
+    const s = cur(), r = solve(s), S = r.feasible ? r.S : (s.spanRef ** 2 / s.AR);
+    const b = Math.sqrt(s.AR * S), W = Math.min($('#anat').clientWidth || 640, 640), H = 330;
+    this.cb.checked = state.noseClear;
+    $('#anat').innerHTML = sketch({ S, AR: s.AR, tail: state.tail, aft: state.noseClear, W, H, ppf: Math.min(W * .62 / b, (H - 70) / (.8 * b)), labels: true });
+  },
+};
+
+P.polar = {
+  lede: 'Everything after this step depends on how well the drag polar models the aircraft.',
+  build(el) {
+    const s = cur();
+    el.append(h(eq(`${sub('C', 'D')}${mo('=')}${sub('C', 'Do')}${mo('+')}${sub('k', '1')}<msup>${sub('C', 'L')}<mn>2</mn></msup>${mo('+')}${sub('k', '2')}${sub('C', 'L')}<mspace width="1.5em"/>${sub('C', 'L')}${mo('=')}${fr(mi('n') + mi('W'), mi('q') + mi('S'))}<mspace width="1.5em"/>${mi('q')}${mo('=')}${fr('<mn>1</mn>', '<mn>2</mn>')}${mi('ρ')}<msup>${mi('V')}<mn>2</mn></msup>`)));
+    const src = isE() ? 'fig' : 'ex';
+    const g = h(`<div class="ctls"></div>`);
+    g.append(ctl(s.polar, 'CDo', { label: 'Zero-lift drag, C<sub>Do</sub>', min: 0.005, max: 0.08, step: 0.0005, d: 4, src }));
+    g.append(ctl(s.polar, 'k1', { label: 'Induced drag factor, k<sub>1</sub>', min: 0.02, max: 0.3, step: 0.002, d: 3, src }));
+    g.append(ctl(s.polar, 'k2', { label: 'Camber term, k<sub>2</sub>', min: -0.05, max: 0.02, step: 0.001, d: 3, src: 'ex' }));
+    g.append(ctl(s, 'rho', { label: 'Air density, ρ', min: 0.0015, max: 0.0025, step: 0.00001, d: 5, unit: 'slug/ft³', src: 'ex' }));
+    el.append(g);
+    el.append(h(`<p class="note">k<sub>2</sub> is usually negative and k<sub>1</sub> positive. Lift adds drag through wingtip vortices (k<sub>1</sub>). Camber lowers drag at a given lift (k<sub>2</sub>).</p>`));
+    el.append(h(`<div class="stats" id="polarStats"></div>`));
+    el.append(h(`<h3>Drag polar</h3>`)); el.append(h(`<div id="polarPlot"></div>`));
+    if (isE()) el.append(h(callout(`The chapter does not list this aircraft's polar. These values are fitted so the master equation reproduces the curves in Fig. 10.3. Aspect ratio does not appear in the chapter's equations, so change k<sub>1</sub> here to model a wing change. Aspect ratio only sets the span in the drawings.`, 'muted')));
+    else el.append(h(callout(`The chapter gives no numbers for a fueled UAV. Every fueled value in this tool is an example, chosen so you can follow the method.`, 'muted')));
+    const ar = h(`<div class="ctls"></div>`);
+    ar.append(ctl(s, 'AR', { label: 'Aspect ratio, for drawings only', min: 2, max: 10, step: 0.5, d: 1, src: isE() ? 'ch' : 'ex' }));
+    el.append(ar);
+  },
+  update() {
+    const s = cur(), p = s.polar, Vc = isE() ? s.Vc : s.legs.find(l => l.id === 'cr').V;
+    const q = dynQ(s.rho, Vc), CL = s.wl / q, CD = polarCD(p, CL), CLs = [];
+    let LDmax = 0, CLbest = 0;
+    for (let c = 0; c <= 1.6001; c += 0.02) { const cd = polarCD(p, c); CLs.push([c, cd]); if (c > 0 && c / cd > LDmax) { LDmax = c / cd; CLbest = c; } }
+    $('#polarStats').innerHTML = stat('q at cruise', f(q), 'lb/ft²') + stat('C<sub>L</sub> at cruise', f(CL, 3)) + stat('C<sub>D</sub> at cruise', f(CD, 4)) + stat('L/D at cruise', f(CL / CD, 1)) + stat('Best L/D', f(LDmax, 1));
+    plot($('#polarPlot'), {
+      h: 280, aria: 'Drag coefficient against lift coefficient',
+      x: { min: 0, max: 1.6, label: 'Lift coefficient, CL' }, y: { max: Math.max(0.12, polarCD(p, 1.6) * 1.1), label: 'Drag coefficient, CD' },
+      series: [{ name: 'CD', color: '--s1', pts: CLs }], tipD: 4, tipHead: x => `C<sub>L</sub> ${f(x)}, L/D ${f(x / polarCD(p, x), 1)}`,
+      marks: [{ x: CL, y: CD, label: `Cruise, ${f(Vc, 0)} ft/s` }],
+    });
+  },
+};
+const stat = (k, v, u = '') => `<div class="stat"><span>${k}</span><b>${v}</b>${u ? `<em>${u}</em>` : ''}</div>`;
+
+P.constraints = {
+  lede: 'Each requirement draws a boundary on a thrust loading against wing loading plot. Any point above every line meets every requirement.',
+  build(el) {
+    const s = cur();
+    el.append(h(eq(`${fr(sub('T', 'SL'), sub('W', 'TO'))}${mo('=')}${fr(mi('q'), mi('α'))}<mrow>${mo('[')}${fr(sub('C', 'Do'), sub('W', 'TO') + mo('/') + mi('S'))}${mo('+')}${sub('k', '1')}<msup>${paren(fr(mi('n') + mi('β'), mi('q')))}<mn>2</mn></msup>${paren(fr(sub('W', 'TO'), mi('S')))}${mo('+')}${sub('k', '2')}${paren(fr(mi('n') + mi('β'), mi('q')))}${mo(']')}</mrow>${mo('+')}${fr(mi('β'), mi('α'))}<mrow>${mo('[')}${fr('<mn>1</mn>', mi('V'))}${fr(mi('dh'), mi('dt'))}${mo('+')}${fr('<mn>1</mn>', mi('g'))}${fr(mi('dV'), mi('dt'))}${mo(']')}</mrow>`, '10.3')));
+    el.append(h(`<div class="pill-row"><div id="consPill"></div><button type="button" class="btn" id="snap">Use lowest-thrust point</button></div>`));
+    el.append(h(`<p class="note">Click or drag on the chart to choose the design point. The ring marks the lowest thrust that still meets everything.</p>`));
+    el.append(h(`<div id="consPlot"></div>`));
+    const g = h(`<div class="ctls"></div>`);
+    g.append(ctl(s, 'wl', { label: 'Design wing loading, W<sub>TO</sub>/S', min: 0.1, max: s.axes.wl, step: 0.01, unit: 'lb/ft²', src: isE() ? 'ch' : 'ex' }));
+    g.append(ctl(s, 'tw', { label: 'Design thrust loading, T<sub>SL</sub>/W<sub>TO</sub>', min: 0.02, max: s.axes.tw, step: 0.005, d: 3, src: isE() ? 'ch' : 'ex' }));
+    el.append(g);
+    el.append(h(`<h3>Requirements</h3>`));
+    const rows = s.cons.map((c, i) => `<tr data-i="${i}"><td class="ck"><input type="checkbox" aria-label="Use ${c.name}" ${c.on ? 'checked' : ''}></td><td><i class="sw" style="background:var(${COLORS[i]})"></i>${c.name}</td>
+      ${['V', 'n', 'roc', 'acc', 'alpha'].map(k => `<td><input type="number" aria-label="${c.name} ${k}" data-k="${k}" step="${k === 'alpha' ? 0.05 : k === 'n' ? 0.1 : 1}" value="${c[k]}"></td>`).join('')}
+      <td class="num beta"></td><td class="num req"></td><td class="res"></td></tr>`).join('');
+    const tb = h(`<div class="scroll"><table class="tbl"><thead><tr><th></th><th>Requirement</th><th>V, ft/s</th><th>n</th><th>dh/dt, ft/s</th><th>dV/dt, ft/s²</th><th>α</th><th>β</th><th>Needs T/W</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+    tb.addEventListener('input', e => {
+      const tr = e.target.closest('tr'); if (!tr) return; const c = s.cons[+tr.dataset.i];
+      if (e.target.type === 'checkbox') c.on = e.target.checked;
+      else if (e.target.value !== '' && +e.target.value >= 0) { const k = e.target.dataset.k, v = +e.target.value; if ((k === 'V' || k === 'alpha') && v <= 0) return; c[k] = v; }
+      update();
+    });
+    el.append(tb);
+    const lim = h(`<div class="ctls"></div>`);
+    lim.append(ctl(s.lim, 'V', { label: `${s.lim.name} speed`, min: 15, max: 80, step: 0.1, d: 1, unit: 'ft/s', src: isE() ? 'fig' : 'ex' }));
+    lim.append(ctl(s.lim, 'CLmax', { label: 'Maximum lift coefficient, C<sub>L,max</sub>', min: 0.8, max: 2, step: 0.01, src: 'ex' }));
+    el.append(h(`<h3>${s.lim.name} limit</h3>`));
+    el.append(h(`<p class="note">This is the vertical line. Setting C<sub>L</sub> = C<sub>L,max</sub> and n = 1 in C<sub>L</sub> = nW/qS gives the highest wing loading the wing can lift at this speed.</p>`));
+    el.append(lim);
+    el.append(h(`<details><summary>What α and β mean here</summary><div><p>α is available thrust divided by sea-level static thrust. It is 1 at the static test condition. The chapter says it behaves differently on electric aircraft and can be measured in a wind tunnel. Fig. 10.3 fits α = 1, so that is the starting value.</p><p>β is the weight fraction for the requirement. ${isE() ? 'A battery aircraft does not change weight, so β = 1 throughout.' : 'It is 1 at takeoff. For other requirements it uses full payload and 50 % fuel, so it updates from the mission fuel in step 4.'}</p>${isE() ? '<p>The chapter text calls the electric constraint plot Fig. 10.2, but the values W/S = 1.1 and T/W = 0.21 are on Fig. 10.3.</p>' : ''}</div></details>`));
+    $('#snap', el).addEventListener('click', () => {
+      const best = idealPoint(s.polar, consOf(s, s.polar, s.wl), s.lim, s.rho, s.axes.wl);
+      s.wl = +best.wl.toFixed(2); s.tw = +(requiredTW(s.polar, s.wl, consOf(s, s.polar, s.wl), s.rho).tw + 0.0005).toFixed(3); update();
+    });
+    this.tb = tb;
+  },
+  update() {
+    const s = cur(), cons = consOf(s, s.polar, s.wl), { rows, missed, limit } = checkDesign(s), N = 120, X = s.axes.wl;
+    const grid = Array.from({ length: N }, (_, i) => X * (i + 1) / N);
+    const active = cons.map((c, i) => ({ c, i })).filter(a => a.c.on);
+    const series = active.map(({ c, i }) => ({ name: c.name, color: COLORS[i], dash: DASHES[i], pts: grid.map(w => [w, masterTW(s.polar, w, c, s.rho)]) }));
+    const top = s.lim.on ? Math.min(limit, X) : X, floor = [];
+    for (const w of grid) if (w <= top) floor.push([w, requiredTW(s.polar, w, cons, s.rho).tw]);
+    const region = floor.length ? [[floor[0][0], s.axes.tw], ...floor, [top, floor[floor.length - 1][1]], [top, s.axes.tw]] : null;
+    const ideal = idealPoint(s.polar, cons, s.lim, s.rho, X);
+    plot($('#consPlot'), {
+      h: 360, aria: 'Constraint diagram', series, region, vlines: s.lim.on ? [{ x: limit, color: '--fg2' }] : [],
+      x: { min: 0, max: X, label: 'Wing loading, WTO/S (lb/ft²)' }, y: { max: s.axes.tw, label: 'Thrust loading, TSL/WTO' },
+      marks: [{ type: 'ring', x: ideal.wl, y: ideal.tw }, { type: 'plus', x: s.wl, y: s.tw, label: `W/S ${f(s.wl)}, T/W ${f(s.tw)}` }],
+      tipHead: x => `W/S ${f(x)} lb/ft²`,
+      tipExtra: x => `<div class="tr tr-sum"><span>Needs at least</span><b>${f(requiredTW(s.polar, x, cons, s.rho).tw, 3)}</b></div>`,
+      onPick: (x, y) => { s.wl = Math.max(0.1, +x.toFixed(2)); s.tw = Math.max(0.02, +y.toFixed(3)); update(); },
+    });
+    $('#consPill').innerHTML = pill(missed);
+    this.tb.querySelectorAll('tbody tr').forEach((tr, i) => {
+      const r = rows[i]; $('.req', tr).textContent = f(r.req, 3); $('.beta', tr).textContent = f(r.c.beta);
+      $('.res', tr).innerHTML = !r.c.on ? '<span class="dim">Off</span>' : r.req <= s.tw ? '<span class="ok">✓ Met</span>' : '<span class="bad">✕ Missed</span>';
+    });
+  },
+};
+const pill = missed => missed.length ? `<span class="pill bad"><b>✕</b> Misses ${missed.join(', ')}</span>` : `<span class="pill ok"><b>✓</b> Meets every requirement</span>`;
+
+P.energy = {
+  get lede() { return isE() ? 'The battery must supply the thrust energy for the mission, plus what the motor and propeller lose.' : 'The master equation for mission analysis turns each leg into a fuel fraction. Fuel burned on earlier legs lowers the weight for later legs.'; },
+  build(el) {
+    const s = cur();
+    if (isE()) {
+      el.append(h(eq(`${mi('E')}${mo('=')}${sub('W', 'TO')}${mi('Δh')}${mo('+')}${mi('D')}${mi('V')}${mi('t')}`, '10.7')));
+      el.append(h(eq(`${fr(sub('W', 'Battery'), mi('S'))}${mo('=')}${fr(sub('W', 'TO'), mi('S'))}<mspace width=".3em"/>${fr(mi('V') + mi('t'), fr(mi('L'), mi('D')) + mi('e') + sub('η', 'motor') + sub('η', 'prop'))}`, '10.10')));
+      const g = h(`<div class="ctls"></div>`);
+      g.append(ctl(s, 'tHr', { label: 'Mission duration, t', min: 0.25, max: 6, step: 0.05, unit: 'hr', src: 'ex' }));
+      g.append(ctl(s, 'Vc', { label: 'Cruise speed, V', min: 18, max: 68, step: 0.5, d: 1, unit: 'ft/s', src: 'fig' }));
+      g.append(ctl(s, 'e', { label: 'Battery energy density, e', min: 30, max: 300, step: 1, d: 0, unit: 'W-h/lb', src: 'ch' }));
+      g.append(ctl(s, 'dh', { label: 'Initial climb, Δh', min: 0, max: 1500, step: 10, d: 0, unit: 'ft', src: 'ch' }));
+      el.append(g);
+      el.append(h(`<h3>Motor and propeller efficiency</h3>`));
+      const sg = seg(s, 'etaSource', [['fig', 'Fig. 10.5 test data'], ['manual', 'Enter my own']], () => { $('#etaManual').hidden = s.etaSource === 'fig'; update(); });
+      el.append(sg);
+      const man = h(`<div class="ctls" id="etaManual"></div>`); man.hidden = s.etaSource === 'fig';
+      man.append(ctl(s, 'etaMotor', { label: 'Motor efficiency, η<sub>motor</sub>', min: 0.2, max: 1, step: 0.01 }));
+      man.append(ctl(s, 'etaProp', { label: 'Propeller efficiency, η<sub>prop</sub>', min: 0.2, max: 1, step: 0.01 }));
+      el.append(man);
+      const a = h(`<label class="check"><input type="checkbox" id="approx"><span>Ignore climb energy, as Eq. 10.8 does when it is small</span></label>`);
+      const cb = $('input', a); cb.checked = s.approx; cb.addEventListener('change', () => { s.approx = cb.checked; update(); });
+      el.append(a);
+      el.append(h(`<div class="stats" id="enStats"></div>`));
+      el.append(h(`<div class="live" id="enLive"></div>`));
+      el.append(h(`<div class="two"><div><h3>Efficiency, Fig. 10.5</h3><div id="etaPlot"></div></div><div><h3>Battery share of weight</h3><div id="fracPlot"></div></div></div>`));
+      el.append(h(callout(`The propeller gets much more efficient as speed rises, while L/D falls away from its best point. The right chart combines both effects through Eq. 10.9, so the slowest cruise is rarely the lightest.`)));
+      el.append(h(`<details><summary>Fig. 10.4 mission profile</summary><div><p>Launch and climb to 500 ft, cruise out at best endurance speed, loiter for reconnaissance, cruise back, descend for recovery. Speed stays about constant and weight never changes, so drag and L/D stay constant too. That is why Eq. 10.7 needs only one drag value. The chapter text cites Fig. 10.3 for this profile, but the profile is Fig. 10.4.</p></div></details>`));
+    } else {
+      el.append(h(eq(`${fr(mi('Δ') + sub('W', 'f'), sub('W', 'TO'))}${mo('=')}${mi('c')}${mi('q')}<mrow>${mo('[')}${fr(sub('C', 'Do'), sub('W', 'TO') + mo('/') + mi('S'))}${mo('+')}${sub('k', '1')}<msup>${paren(fr(mi('n') + mi('β'), mi('q')))}<mn>2</mn></msup>${paren(fr(sub('W', 'TO'), mi('S')))}${mo('+')}${sub('k', '2')}${paren(fr(mi('n') + mi('β'), mi('q')))}${mo(']')}</mrow>${paren(sub('t', '1') + mo('-') + sub('t', '0'))}${mo('+')}${mi('c')}${mi('β')}<mrow>${mo('[')}${fr('<mn>1</mn>', mi('V'))}${paren(sub('h', '1') + mo('-') + sub('h', '0'))}${mo('+')}${fr('<mn>1</mn>', mi('g'))}${paren(sub('V', '1') + mo('-') + sub('V', '0'))}${mo(']')}</mrow>`, '10.4')));
+      const g = h(`<div class="ctls"></div>`);
+      g.append(ctl(s, 'cHr', { label: 'Thrust-specific fuel consumption, c', min: 0.3, max: 2.5, step: 0.05, unit: '1/hr', src: 'ex' }));
+      el.append(g);
+      const rows = s.legs.map((l, i) => `<tr data-i="${i}"><td>${l.name}</td>${['V', 'dtMin', 'dh', 'dV'].map(k => `<td><input type="number" aria-label="${l.name} ${k}" data-k="${k}" step="${k === 'dtMin' ? 1 : 5}" value="${l[k]}"></td>`).join('')}<td class="num b"></td><td class="num ff"></td><td class="barc"><i class="bar"></i></td></tr>`).join('');
+      const tb = h(`<div class="scroll"><table class="tbl"><thead><tr><th>Leg</th><th>V, ft/s</th><th>Time, min</th><th>Δh, ft</th><th>ΔV, ft/s</th><th>β at start</th><th>ΔW<sub>f</sub>/W<sub>TO</sub></th><th>Share</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+      tb.addEventListener('input', e => { const tr = e.target.closest('tr'), v = +e.target.value; if (!tr || e.target.value === '' || v < 0) return; const k = e.target.dataset.k; if (k === 'V' && v <= 0) return; s.legs[+tr.dataset.i][k] = v; update(); });
+      el.append(tb); this.tb = tb;
+      const a = h(`<label class="check"><input type="checkbox" id="split"><span>Break cruise and loiter into many short legs</span></label>`);
+      const cb = $('input', a); cb.checked = s.split; cb.addEventListener('change', () => { s.split = cb.checked; update(); });
+      el.append(a);
+      el.append(h(`<p class="note">Eq. 10.4 assumes constant β on each leg. That fails on long legs, so the chapter splits them. Switch this off to see the fuel error from one long step.</p>`));
+      el.append(h(`<div class="stats" id="enStats"></div>`));
+      el.append(h(`<div class="live" id="enLive"></div>`));
+      el.append(h(callout(`The chapter prints the last term as (V − V01). This tool reads it as V<sub>1</sub> − V<sub>0</sub>, the speed change across the leg.`, 'muted')));
+    }
+  },
+  update() {
+    const s = cur();
+    if (isE()) {
+      const b = batteryFraction(s.polar, s, s.wl, s.rho), r = solve(s);
+      const Wt = r.W, Dp = Wt / b.LD * s.Vc / 0.7376 / b.eta;
+      $('#enStats').innerHTML = stat('L/D', f(b.LD, 1)) + stat('η total', f(b.eta, 3)) + stat('Battery / W<sub>TO</sub>', f(b.frac, 3)) + stat('Climb share of energy', f(b.climb / (b.climb + b.cruise) * 100, 1), '%') + stat('Battery power', r.feasible ? f(Dp, 1) : '–', 'W');
+      $('#enLive').textContent = `W_batt/S = ${f(s.wl)} × ${f(s.Vc, 1)} × ${f(s.tHr * 3600, 0)} / (${f(b.LD, 1)} × ${f(s.e * WH_TO_FTLB, 0)} × ${f(b.eta, 3)})${s.approx ? '' : ' + climb'} = ${f(b.frac * s.wl, 3)} lb/ft²`;
+      const pts = FIG_10_5.map(p => [p[0], p[1]]);
+      const etaS = [{ name: 'Measured', color: '--s1', pts, dots: 3.5 }];
+      plot($('#etaPlot'), { h: 250, aria: 'Motor and propeller efficiency against velocity', x: { min: 0, max: 80, label: 'Velocity (ft/s)' }, y: { max: 0.8, label: 'Efficiency' }, series: etaS, tipHead: x => `${f(x, 0)} ft/s`, marks: [{ x: s.Vc, y: etaOf(s, s.Vc) }] });
+      const grid = []; for (let V = 18; V <= 68; V += 1) grid.push([V, batteryFraction(s.polar, s, s.wl, s.rho, V).frac]);
+      plot($('#fracPlot'), { h: 250, aria: 'Battery weight fraction against cruise speed', x: { min: 0, max: 80, label: 'Cruise speed (ft/s)' }, y: { max: 1, label: 'Battery / takeoff weight' }, series: [{ name: 'Battery fraction', color: '--s1', pts: grid }], tipHead: x => `${f(x, 0)} ft/s`, marks: [{ x: s.Vc, y: b.frac }] });
+    } else {
+      const mf = fuelOf(s, s.polar, s.wl), maxF = Math.max(...mf.rows.map(r => r.fuel));
+      this.tb.querySelectorAll('tbody tr').forEach((tr, i) => {
+        const r = mf.rows[i]; $('.b', tr).textContent = f(r.beta, 3); $('.ff', tr).textContent = f(r.fuel, 4);
+        $('.bar', tr).style.width = (maxF > 0 ? r.fuel / maxF * 100 : 0) + '%';
+      });
+      $('#enStats').innerHTML = stat('Mission fuel fraction', f(mf.total, 3)) + stat('β at landing', f(mf.betaEnd, 3)) + stat('β for constraints', f(1 - 0.5 * mf.total, 3));
+      $('#enLive').textContent = `W_fmission/S = ${f(mf.total, 3)} × ${f(s.wl)} = ${f(mf.total * s.wl, 3)} lb/ft²`;
+    }
+  },
+};
+
+P.weights = {
+  get lede() { return 'Two more slices of the wing loading come from weight estimates: the airframe, and the ' + (isE() ? 'motor and propeller.' : 'engine.'); },
+  build(el) {
+    const s = cur();
+    el.append(h(`<h3>Airframe</h3>`));
+    el.append(h(`<p>Weigh a similar airframe to get a weight per unit area for each part. Scale each by its area relative to the wing, then add them up.${isE() ? ' The chapter gives 0.2 lb/ft² as a nominal total for carbon-epoxy skin over foam.' : ''}</p>`));
+    const rows = s.comps.map((c, i) => `<tr data-i="${i}"><td>${c.name}</td><td><input type="number" aria-label="${c.name} weight per area" data-k="w" step="0.01" min="0" value="${c.w}"></td><td><input type="number" aria-label="${c.name} area ratio" data-k="r" step="0.05" min="0" value="${c.r}"></td><td class="num v"></td></tr>`).join('');
+    const tb = h(`<div class="scroll"><table class="tbl"><thead><tr><th>Part</th><th>Weight per area, lb/ft²</th><th>Area / S</th><th>Wing loading portion</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="3">Airframe wing loading portion ${tag(isE() ? 'ch' : 'ex')}</td><td class="num" id="afTotal"></td></tr></tfoot></table></div>`);
+    tb.addEventListener('input', e => { const tr = e.target.closest('tr'); if (!tr || e.target.value === '' || +e.target.value < 0) return; s.comps[+tr.dataset.i][e.target.dataset.k] = +e.target.value; update(); });
+    el.append(tb); this.tb = tb;
+    el.append(h(`<h3>${isE() ? 'Motor and propeller' : 'Engine'}</h3>`));
+    el.append(h(eq(isE()
+      ? `${fr(sub('W', 'Motor'), mi('S'))}${mo('=')}${fr(mi('T'), sub('W', 'TO'))}${fr(sub('W', 'Motor'), mi('T'))}${fr(sub('W', 'TO'), mi('S'))}`
+      : `${fr(sub('W', 'engine'), mi('S'))}${mo('=')}${fr(fr(sub('T', 'SL'), sub('W', 'TO')) + fr(sub('W', 'TO'), mi('S')), fr(sub('T', 'SL'), sub('W', 'engine')))}`, isE() ? '10.11' : '')));
+    const g = h(`<div class="ctls"></div>`);
+    g.append(ctl(s, 'twEngine', { label: isE() ? 'Motor and propeller thrust-to-weight, T/W<sub>motor</sub>' : 'Engine thrust-to-weight, T<sub>SL</sub>/W<sub>engine</sub>', min: 0.5, max: 10, step: 0.1, d: 1, src: 'ex' }));
+    el.append(g);
+    el.append(h(`<div class="live" id="wLive"></div>`));
+    el.append(h(`<p class="note">The chapter gets this ratio from wind tunnel tests of real motor and propeller pairs, and gives no value. The electric example uses 2.</p>`));
+  },
+  update() {
+    const s = cur(); this.tb.querySelectorAll('tbody tr').forEach((tr, i) => { const c = s.comps[i]; $('.v', tr).textContent = f(c.w * c.r, 3); });
+    $('#afTotal').textContent = f(airframeOf(s), 3) + ' lb/ft²';
+    $('#wLive').textContent = `W_${isE() ? 'motor' : 'engine'}/S = ${f(s.tw, 3)} × ${f(s.wl)} / ${f(s.twEngine, 1)} = ${f(s.tw * s.wl / s.twEngine, 3)} lb/ft²`;
+  },
+};
+
+P.size = {
+  lede: 'The chosen wing loading is a budget. Whatever the airframe, energy and propulsion leave behind has to lift the payload, and that remainder sets the wing area.',
+  build(el) {
+    const s = cur();
+    el.append(h(eq(`${mi('S')}${mo('=')}${fr(sub('W', 'payload'), fr(sub('W', 'TO'), mi('S')) + mo('-') + fr(sub('W', 'airframe'), mi('S')) + mo('-') + fr(sub('W', isE() ? 'battery' : 'fmission'), mi('S')) + mo('-') + fr(sub('W', isE() ? 'motor' : 'engine'), mi('S')))}<mspace width="2em"/>${sub('W', 'TO')}${mo('=')}${mi('S')}${paren(fr(sub('W', 'TO'), mi('S')))}`, isE() ? '10.6, 10.5' : '10.1, 10.5')));
+    const g = h(`<div class="ctls"></div>`);
+    g.append(ctl(s, 'Wp', { label: 'Payload weight, W<sub>payload</sub>', min: isE() ? 0.05 : 0.5, max: isE() ? 2 : 30, step: isE() ? 0.01 : 0.1, unit: 'lb', src: isE() ? 'ch' : 'ex' }));
+    g.append(ctl(s, isE() ? 'tHr' : 'loiterMin', isE() ? { label: 'Mission duration, t', min: 0.25, max: 6, step: 0.05, unit: 'hr', src: 'ex' } : { label: 'Loiter time', min: 0, max: 600, step: 5, d: 0, unit: 'min', src: 'ex' }));
+    el.append(g);
+    el.append(h(`<h3>Wing loading budget</h3>`));
+    el.append(h(`<div id="budget"></div>`));
+    el.append(h(`<div class="live" id="sizeLive"></div>`));
+    el.append(h(`<div id="sizeMsg"></div>`));
+    el.append(h(`<h3>${isE() ? 'How long is too long' : 'How far can loiter go'}</h3>`));
+    el.append(h(`<div id="sweep"></div>`));
+    el.append(h(`<p class="note">As ${isE() ? 'duration' : 'loiter time'} grows, the payload's share of the budget shrinks toward zero, so the wing area climbs without limit. Past that point no aircraft of this technology level can fly the mission.</p>`));
+  },
+  update() {
+    const s = cur(), r = solve(s), p = r.parts, left = Math.max(0, r.left);
+    const items = [[p.airframe, 'Airframe', '--s1'], [p.energy, isE() ? 'Battery' : 'Mission fuel', '--s2'], [p.power, isE() ? 'Motor and prop' : 'Engine', '--s3'], [left, 'Payload', '--s4']];
+    const total = items.reduce((a, i) => a + i[0], 0) || 1;
+    $('#budget').innerHTML = `<div class="stack" role="img" aria-label="Wing loading split between airframe, energy, propulsion and payload">${items.map(i => `<div style="flex:${Math.max(i[0], 0.0001)} 1 0;background:var(${i[2]})" title="${i[1]} ${f(i[0], 3)} lb/ft²"></div>`).join('')}</div>
+      <table class="tbl compact"><thead><tr><th>Slice</th><th>lb/ft²</th><th>Share</th><th>Weight, lb</th></tr></thead><tbody>${items.map(i => `<tr><td><i class="sw" style="background:var(${i[2]})"></i>${i[1]}</td><td class="num">${f(i[0], 3)}</td><td class="num">${f(i[0] / total * 100, 1)} %</td><td class="num">${r.feasible ? f(i[0] * r.S, 3) : '–'}</td></tr>`).join('')}</tbody></table>`;
+    $('#sizeLive').textContent = `S = ${f(s.Wp)} / (${f(s.wl)} − ${f(p.airframe, 3)} − ${f(p.energy, 3)} − ${f(p.power, 3)}) = ${r.feasible ? f(r.S, 3) + ' ft²' : 'no solution'}`;
+    $('#sizeMsg').innerHTML = !r.feasible
+      ? callout(`<strong>No aircraft closes.</strong> The other slices use ${f((p.airframe + p.energy + p.power) / s.wl * 100, 0)} % of the wing loading, leaving nothing for payload. The chapter says this usually means the mission is too long, and that radical configuration changes or new technology, such as higher battery energy density, would be needed.`, 'warn')
+      : isE() ? callout(`<strong>Check against the chapter.</strong> The Red Falcon sized to slightly over 1 ft² and slightly over 1 lb. This setup gives ${f(r.S)} ft² and ${f(r.W)} lb. The chapter does not state the mission time, so the example duration was set to land here.`, 'muted') : '';
+    const pts = [];
+    if (isE()) {
+      for (let t = 0.1; t <= 6.01; t += 0.05) { const x = solve({ __proto__: s, tHr: t }); pts.push([t, x.feasible ? x.S : NaN]); }
+    } else {
+      for (let t = 0; t <= 600; t += 10) { const x = solve({ __proto__: s, legs: s.legs.map(l => l.id === 'lo' ? { ...l, dtMin: t } : l) }); pts.push([t, x.feasible ? x.S : NaN]); }
+    }
+    const curX = isE() ? s.tHr : s.loiterMin, base = r.feasible ? r.S : 2 * s.spanRef;
+    const good = pts.filter(q => Number.isFinite(q[1]));
+    plot($('#sweep'), {
+      h: 260, aria: 'Wing area against mission duration',
+      x: { min: 0, max: isE() ? 6 : 600, label: isE() ? 'Mission duration (hr)' : 'Loiter time (min)' }, y: { max: +(Math.max(base * 3, good.length ? good[0][1] * 3 : 1)).toPrecision(2), label: 'Wing area, S (ft²)' },
+      series: [{ name: 'Wing area', color: '--s1', pts: good.length ? good : [[0, 0]] }], tipHead: x => isE() ? `${f(x)} hr` : `${f(x, 0)} min`,
+      marks: r.feasible ? [{ x: curX, y: r.S, label: `${f(r.S)} ft²` }] : [],
+    });
+  },
+};
+
+P.iterate = {
+  lede: 'Often the fuselage is sized by the payload, so only the wing and tail change. That changes the drag polar and the airframe weight, so the whole analysis must run again.',
+  build(el) {
+    const s = cur(), it = s.it;
+    el.append(h(`<p>Start from the wing area you modelled. Run the analysis, get a recommended area, then feed it back in. The chapter warns that this loop can be unstable, and that averaging the old and new areas speeds convergence.</p>`));
+    const g = h(`<div class="ctls"></div>`);
+    g.append(ctl(it, 'Sref', { label: 'Modelled wing area', min: isE() ? 0.4 : 2, max: isE() ? 4 : 20, step: 0.05, unit: 'ft²', src: 'ex' }));
+    g.append(ctl(it, 'dragShare', { label: 'Fuselage share of C<sub>Do</sub> at that area', min: 0, max: 0.8, step: 0.01, src: 'ex' }));
+    g.append(ctl(it, 'weightShare', { label: 'Fuselage share of airframe weight', min: 0, max: 0.8, step: 0.01, src: 'ex' }));
+    el.append(g);
+    el.append(h(`<h3>Update rule</h3>`));
+    el.append(seg(it, 'damp', [['true', 'Average with previous area'], ['false', 'Use the new area directly']]));
+    el.append(h(`<div class="pill-row" id="itPill"></div>`));
+    el.append(h(`<div id="itPlot"></div>`));
+    el.append(h(`<div class="scroll"><table class="tbl compact"><thead><tr><th>Pass</th><th>Modelled S, ft²</th><th>C<sub>Do</sub></th><th>Needs T/W</th><th>New S, ft²</th></tr></thead><tbody id="itRows"></tbody></table></div>`));
+    el.append(h(`<details><summary>How the fixed fuselage is modelled</summary><div><p>The chapter describes the effect but gives no formula, so this tool uses the simplest version. The fuselage keeps its drag area and weight while S changes, which rescales its share by S<sub>modelled</sub>/S. Everything else stays as on the earlier pages. On each pass T/W is reset to the same margin above the constraint lines, and W/S stays at your design point.</p></div></details>`));
+  },
+  update() {
+    const s = cur(), it = s.it, cons0 = consOf(s, s.polar, s.wl), margin = s.tw / requiredTW(s.polar, s.wl, cons0, s.rho).tw;
+    const r = iterateSizing(Sx => {
+      const pS = polarAt(s.polar, it, Sx), cons = consOf(s, pS, s.wl), tw = requiredTW(pS, s.wl, cons, s.rho).tw * margin;
+      const { parts } = partsOf(s, pS, s.wl, tw, airframeAt(airframeOf(s), it, Sx));
+      return { ...sizeAircraft(s.wl, parts, s.Wp), CDo: pS.CDo, tw };
+    }, it);
+    const a = r.hist.map(x => [x.i + 1, x.S]), b = r.hist.filter(x => Number.isFinite(x.Snew)).map(x => [x.i + 1, x.Snew]);
+    const top = Math.max(...a.map(q => q[1]), ...b.map(q => q[1])) * 1.15;
+    plot($('#itPlot'), {
+      h: 260, aria: 'Wing area at each pass of the sizing loop', x: { min: 0, max: Math.max(6, r.hist.length + 1), label: 'Pass' }, y: { max: +top.toPrecision(2), label: 'Wing area, S (ft²)' },
+      series: [{ name: 'Modelled area', color: '--s1', pts: a, dots: 3.5 }, { name: 'Sizing equation result', color: '--s2', dash: '7 3', pts: b, dots: 3.5 }], tipHead: x => `Pass ${Math.round(x)}`,
+    });
+    $('#itRows').innerHTML = r.hist.map(x => `<tr><td class="num">${x.i + 1}</td><td class="num">${f(x.S, 3)}</td><td class="num">${f(x.CDo, 4)}</td><td class="num">${f(x.tw, 3)}</td><td class="num">${Number.isFinite(x.Snew) ? f(x.Snew, 3) : 'none'}</td></tr>`).join('');
+    const msg = {
+      converged: `<span class="pill ok"><b>✓</b> Converged at ${f(r.S)} ft² after ${r.hist.length} passes</span>`,
+      notconverged: `<span class="pill bad"><b>✕</b> Still swinging after ${r.hist.length} passes</span>`,
+      nosolution: `<span class="pill bad"><b>✕</b> Loop broke at pass ${r.hist.length}: the sizing equation has no solution there</span>`,
+    }[r.status];
+    $('#itPill').innerHTML = msg;
+  },
+};
+
+P.optimize = {
+  lede: 'Repeat the whole cycle across a family of configurations, then pick the one that meets every requirement at the smallest size.',
+  build(el) {
+    const s = cur();
+    el.append(h(`<p>Each line is one wing family. Each point on a line is a different design wing loading, with thrust loading set by the constraint lines plus your current margin. Lower and further left means a smaller aircraft.</p>`));
+    el.append(h(`<div class="pill-row"><div id="optPill"></div><button type="button" class="btn" id="useBest">Use lightest point</button></div>`));
+    el.append(h(`<div id="carpet"></div>`));
+    el.append(h(`<div class="scroll"><table class="tbl compact"><thead><tr><th>Family</th><th>Lightest W<sub>TO</sub>, lb</th><th>S, ft²</th><th>W/S, lb/ft²</th></tr></thead><tbody id="optRows"></tbody></table></div>`));
+    el.append(h(callout(`The chapter's Fig. 10.6 varies aspect ratio, but gives no equation linking aspect ratio to the polar. This plot varies k<sub>1</sub>, the term aspect ratio changes, so it stays within the chapter's equations. The chapter's Red Falcon stopped at aspect ratio 4 because higher values saved little size and packed worse in a backpack. Weigh those practical limits too.`, 'muted')));
+    $('#useBest', el).addEventListener('click', () => { if (this.best) { s.wl = +this.best.wl.toFixed(2); s.tw = +this.best.tw.toFixed(3); update(); } });
+  },
+  update() {
+    const s = cur(), mult = [0.5, 0.7, 1, 1.4, 2], cons0 = consOf(s, s.polar, s.wl), margin = Math.max(1, s.tw / requiredTW(s.polar, s.wl, cons0, s.rho).tw);
+    const limit = s.lim.on ? Math.min(wingLoadingLimit(s.lim, s.rho), s.axes.wl) : s.axes.wl;
+    const series = [], table = [];
+    mult.forEach((k, i) => {
+      const pol = { ...s.polar, k1: s.polar.k1 * k }, pts = []; let best = null;
+      for (let j = 4; j <= 40; j++) {
+        const wl = limit * j / 40, tw = requiredTW(pol, wl, consOf(s, pol, wl), s.rho).tw * margin, r = solve(s, pol, wl, tw);
+        if (!r.feasible || r.W > 1e3) continue;
+        const o = [r.W, r.S, wl, tw]; pts.push(o); if (!best || r.W < best[0]) best = o;
+      }
+      series.push({ name: `k1 = ${f(pol.k1, 3)}`, color: COLORS[i], dash: DASHES[i], pts, best, k });
+      table.push({ name: `k<sub>1</sub> = ${f(pol.k1, 3)}`, best });
+    });
+    const ref = series[2].best, here = solve(s);
+    this.best = ref ? { wl: ref[2], tw: ref[3] } : null;
+    $('#optPill').innerHTML = ref ? `<span class="pill ok"><b>✓</b> Lightest at your k<sub>1</sub>: ${f(ref[0])} lb, ${f(ref[1])} ft²</span>` : `<span class="pill bad"><b>✕</b> No wing loading closes at your k<sub>1</sub></span>`;
+    $('#optRows').innerHTML = table.map(t => `<tr><td>${t.name}</td>${t.best ? `<td class="num">${f(t.best[0])}</td><td class="num">${f(t.best[1])}</td><td class="num">${f(t.best[2])}</td>` : '<td class="num" colspan="3">No solution</td>'}</tr>`).join('');
+    const all = series.flatMap(x => x.pts), bx = all.length ? Math.min(...series.map(x => x.best ? x.best[0] : Infinity)) : 1;
+    const xMax = all.length ? +(Math.min(Math.max(...all.map(q => q[0])), bx * 4) * 1.05).toPrecision(2) : 1;
+    const inView = all.filter(q => q[0] <= xMax), yMax = inView.length ? +(Math.max(...inView.map(q => q[1])) * 1.1).toPrecision(2) : 1;
+    plot($('#carpet'), {
+      h: 360, aria: 'Carpet plot of wing area against takeoff weight', x: { min: 0, max: xMax, label: 'Takeoff weight (lb)' }, y: { max: yMax, label: 'Wing area (ft²)' },
+      series: series.map(x => ({ ...x, pts: x.pts.map(q => [q[0], q[1], q[2]]) })),
+      nearest: q => `<div class="tr"><span>Weight</span><b>${f(q[0])} lb</b></div><div class="tr"><span>Wing area</span><b>${f(q[1])} ft²</b></div><div class="tr"><span>W/S</span><b>${f(q[2])} lb/ft²</b></div>`,
+      marks: here.feasible && here.W <= xMax && here.S <= yMax ? [{ type: 'plus', x: here.W, y: here.S, label: 'Your design' }] : [],
+    });
+  },
+};
+
+/* ---------- shell ---------- */
+Object.defineProperty(state.fueled, 'loiterMin', {
+  get() { return this.legs.find(l => l.id === 'lo').dtMin; }, set(v) { this.legs.find(l => l.id === 'lo').dtMin = v; }, enumerable: false, configurable: true,
+});
+let page = 'config';
+function renderNav() {
+  const t = titles();
+  $('#nav').innerHTML = order.map((id, i) => `<a href="#${id}" class="nav-i" ${id === page ? 'aria-current="page"' : ''}><span class="n">${i + 1}</span>${t[id]}</a>`).join('');
+  if (window.innerWidth <= 760) $('[aria-current]', $('#nav')).scrollIntoView({ inline: 'center', block: 'nearest' });
+}
+function renderPage() {
+  sync = [];
+  const main = $('#page'), t = titles(), [prev, next] = nextOf(page), pg = P[page];
+  main.innerHTML = `<div class="crumb">${isE() ? 'Electric aircraft' : 'Fueled aircraft'}<span>/</span>${secs()[page]}</div><h1>${t[page]}</h1><p class="lede">${pg.lede}</p><div id="body" class="body"></div>
+    <div class="pager">${prev ? `<a href="#${prev}">← ${t[prev]}</a>` : '<span></span>'}${next ? `<a href="#${next}">${t[next]} →</a>` : '<span></span>'}</div>`;
+  pg.build($('#body'));
+  renderNav();
+  update();
+}
+function renderRail() {
+  const s = cur(), r = solve(s), { missed } = checkDesign(s);
+  const S = r.feasible ? r.S : null, b = S ? Math.sqrt(s.AR * S) : null;
+  const host = $('#railSketch');
+  if (host.offsetParent) {
+    const W = host.clientWidth || 260, H = 210, sDraw = S ?? s.spanRef ** 2 / s.AR, bD = Math.sqrt(s.AR * sDraw);
+    host.innerHTML = sketch({ S: sDraw, AR: s.AR, tail: state.tail, aft: state.noseClear, W, H, ppf: Math.min(W * .9 / Math.max(s.spanRef * 1.5, bD), (H - 40) / (.8 * Math.max(s.spanRef * 1.5, bD))), showBar: true });
+    host.classList.toggle('ghost', !S);
+  }
+  $('#railStats').innerHTML = [['Wing area', S ? f(S) : '–', 'ft²'], ['Takeoff weight', S ? f(r.W) : '–', 'lb'], ['Span', b ? f(b) : '–', 'ft'], ['Wing loading', f(s.wl), 'lb/ft²'], ['Thrust loading', f(s.tw, 3), ''], [isE() ? 'Battery' : 'Fuel', f(r.parts.energy / s.wl * 100, 0), '% of W']]
+    .map(([k, v, u]) => `<div><span>${k}</span><b>${v}</b><em>${u}</em></div>`).join('');
+  $('#railPill').innerHTML = (!r.feasible ? `<span class="pill bad"><b>✕</b> Does not close</span>` : '') + pill(missed);
+}
+function update() {
+  sync.forEach(fn => fn());
+  P[page].update();
+  renderRail();
+}
+function route() {
+  const id = location.hash.slice(1);
+  page = order.includes(id) ? id : 'config';
+  renderPage();
+  window.scrollTo(0, 0);
+}
+function boot() {
+  const modeSeg = seg(state, 'mode', [['electric', 'Electric'], ['fueled', 'Fueled']], () => renderPage());
+  $('#modeHost').append(modeSeg);
+  $('#reset').addEventListener('click', () => {
+    const fresh = presets()[state.mode];
+    const t = state[state.mode]; const lo = Object.getOwnPropertyDescriptor(t, 'loiterMin');
+    Object.keys(t).forEach(k => delete t[k]); Object.assign(t, fresh);
+    if (lo) Object.defineProperty(t, 'loiterMin', lo);
+    renderPage();
+  });
+  window.addEventListener('hashchange', route);
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(update, 120); });
+  route();
+}
+boot();
+
+</script>
+</body>
+</html>
